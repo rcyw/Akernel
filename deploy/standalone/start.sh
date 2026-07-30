@@ -20,6 +20,7 @@ IMAGE="${IMAGE:-akerneldev/all-in-one:latest}"
 TRAEFIK_IMAGE="${TRAEFIK_IMAGE:-traefik:v3.6.8}"
 IAM_SEED_FILE="${DATA_DIR}/iam-seed"
 TOKEN_FILE="${DATA_DIR}/token"
+REGISTRY_AUTHS_FILE="${STANDALONE_REGISTRY_AUTHS_FILE:-${CONFIG_DIR}/registry_auths.json}"
 LITEBUS_DATA_KEY=""
 
 # Container runtime command (docker or pouch)
@@ -102,7 +103,6 @@ check_prerequisites() {
         "registry.json"
         "sandboxd_config.toml"
         "oss_auths.json"
-        "registry_auths.json"
     )
 
     local missing=0
@@ -114,6 +114,11 @@ check_prerequisites() {
     done
 
     if [[ $missing -eq 1 ]]; then
+        exit 1
+    fi
+
+    if [[ ! -f "${REGISTRY_AUTHS_FILE}" ]]; then
+        log_error "Missing registry authentication file: ${REGISTRY_AUTHS_FILE}"
         exit 1
     fi
 
@@ -234,7 +239,7 @@ start_node_container() {
         -v "${DATA_DIR}:/home/akernel" \
         -v "${CONFIG_DIR}/oss_auths.json:/home/akernel/sandboxd/config/oss_auths.json:ro" \
         -v "${CONFIG_DIR}/oss.json:/home/akernel/sandboxd/config/oss.json:ro" \
-        -v "${CONFIG_DIR}/registry_auths.json:/home/akernel/sandboxd/config/registry_auths.json:ro" \
+        -v "${REGISTRY_AUTHS_FILE}:/home/akernel/sandboxd/config/registry_auths.json:ro" \
         -v "${CONFIG_DIR}/registry.json:/home/akernel/sandboxd/config/registry.json:ro" \
         -v "${CONFIG_DIR}/config.json:/home/akernel/images/config.json:ro" \
         -v "${CONFIG_DIR}/sandboxd_config.toml:/home/akernel/sandboxd/config.toml:ro" \

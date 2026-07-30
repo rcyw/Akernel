@@ -58,6 +58,17 @@ Update with your registry credentials:
 }
 ```
 
+To keep credentials outside the Git checkout, point standalone at an external
+Docker-format auth file. The file is mounted read-only into the node container:
+
+```bash
+install -m 0600 /path/to/registry-auths.json /secure/path/registry-auths.json
+STANDALONE_REGISTRY_AUTHS_FILE=/secure/path/registry-auths.json ./start.sh
+```
+
+When the variable is unset, standalone continues to use
+`config/registry_auths.json`. Never commit the external auth file.
+
 ### 2. Optional: Configure OSS and Registry Endpoints
 
 Edit `config/oss.json` and `config/registry.json` to point to your actual OSS and registry endpoints.
