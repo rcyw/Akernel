@@ -21,6 +21,7 @@ TRAEFIK_IMAGE="${TRAEFIK_IMAGE:-traefik:v3.6.8}"
 IAM_SEED_FILE="${DATA_DIR}/iam-seed"
 TOKEN_FILE="${DATA_DIR}/token"
 REGISTRY_AUTHS_FILE="${STANDALONE_REGISTRY_AUTHS_FILE:-${CONFIG_DIR}/registry_auths.json}"
+SANDBOXD_CONFIG_FILE="${STANDALONE_SANDBOXD_CONFIG_FILE:-${CONFIG_DIR}/sandboxd_config.toml}"
 LITEBUS_DATA_KEY=""
 
 # Container runtime command (docker or pouch)
@@ -101,7 +102,6 @@ check_prerequisites() {
         "config.json"
         "oss.json"
         "registry.json"
-        "sandboxd_config.toml"
         "oss_auths.json"
     )
 
@@ -119,6 +119,11 @@ check_prerequisites() {
 
     if [[ ! -f "${REGISTRY_AUTHS_FILE}" ]]; then
         log_error "Missing registry authentication file: ${REGISTRY_AUTHS_FILE}"
+        exit 1
+    fi
+
+    if [[ ! -f "${SANDBOXD_CONFIG_FILE}" ]]; then
+        log_error "Missing sandboxd configuration file: ${SANDBOXD_CONFIG_FILE}"
         exit 1
     fi
 
@@ -242,7 +247,7 @@ start_node_container() {
         -v "${REGISTRY_AUTHS_FILE}:/home/akernel/sandboxd/config/registry_auths.json:ro" \
         -v "${CONFIG_DIR}/registry.json:/home/akernel/sandboxd/config/registry.json:ro" \
         -v "${CONFIG_DIR}/config.json:/home/akernel/images/config.json:ro" \
-        -v "${CONFIG_DIR}/sandboxd_config.toml:/home/akernel/sandboxd/config.toml:ro" \
+        -v "${SANDBOXD_CONFIG_FILE}:/home/akernel/sandboxd/config.toml:ro" \
         "${IMAGE}"
 }
 

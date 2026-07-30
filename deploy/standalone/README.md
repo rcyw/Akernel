@@ -69,6 +69,20 @@ STANDALONE_REGISTRY_AUTHS_FILE=/secure/path/registry-auths.json ./start.sh
 When the variable is unset, standalone continues to use
 `config/registry_auths.json`. Never commit the external auth file.
 
+To test an alternate sandboxd configuration without changing the checkout,
+set `STANDALONE_SANDBOXD_CONFIG_FILE` to a complete TOML file. The file is
+mounted read-only and must remain available for the lifetime of the node
+container:
+
+```bash
+STANDALONE_SANDBOXD_CONFIG_FILE=/secure/path/sandboxd_config.toml ./start.sh
+```
+
+The default `runsc_host_cgroup_memory_overhead` is `"0"`. A non-zero value
+increases the effective sandbox memory limit reported by sandboxd and observed
+inside runsc. Enable it only when deployment capacity accounting reserves the
+same additional amount for every concurrent runsc sandbox.
+
 ### 2. Optional: Configure OSS and Registry Endpoints
 
 Edit `config/oss.json` and `config/registry.json` to point to your actual OSS and registry endpoints.

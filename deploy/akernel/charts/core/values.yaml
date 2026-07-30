@@ -483,6 +483,10 @@ node:
         filestore_dir="/home/akernel/xfs"
         filestore_dir_size="200G"
         overlay_tmpfs_size="10G"
+        # This increases runsc's effective sandbox memory limit. Keep it at
+        # zero unless scheduler and node-capacity accounting include the same
+        # per-sandbox overhead.
+        runsc_host_cgroup_memory_overhead="0"
 
         [plugin.runtime.basic_spec]
         runsc="/home/akernel/images/config.json"
