@@ -187,21 +187,39 @@ class _SandboxInstance:
 
     # ── command execution methods ──────────────────────────────────────
 
-    def cmd_run(self, cmd, envs=None, cwd=None, timeout=60):
+    def _command_env(self, envs=None):
         import os
+
+        env = os.environ.copy()
+        python_path = env.get("PYTHONPATH")
+        if python_path:
+            paths = [
+                path
+                for path in python_path.split(os.pathsep)
+                if not (
+                    path.startswith("/__yuanrong/opt/venv-py")
+                    and path.endswith("/site-packages")
+                )
+            ]
+            if paths:
+                env["PYTHONPATH"] = os.pathsep.join(paths)
+            else:
+                env.pop("PYTHONPATH", None)
+        if envs:
+            env.update(envs)
+        return env
+
+    def cmd_run(self, cmd, envs=None, cwd=None, timeout=60):
         import subprocess
 
         try:
-            env = os.environ.copy()
-            if envs:
-                env.update(envs)
             result = subprocess.run(
                 cmd,
                 shell=True,
                 capture_output=True,
                 text=True,
                 cwd=cwd or self._cwd,
-                env=env,
+                env=self._command_env(envs),
                 timeout=timeout,
                 # Foreground one-shot commands cannot receive stdin (no handle
                 # is returned), so detach stdin to /dev/null. Otherwise the
@@ -224,14 +242,10 @@ class _SandboxInstance:
             return {"stdout": "", "stderr": str(e), "exit_code": -1}
 
     def cmd_start(self, cmd, envs=None, cwd=None, want_stdin=False):
-        import os
         import subprocess
         import threading
 
         try:
-            env = os.environ.copy()
-            if envs:
-                env.update(envs)
             # Default stdin to /dev/null: an open PIPE with no writer never
             # reaches EOF, so any interactive prompt (apt/debconf tzdata, etc.)
             # blocks forever on read(). Callers that need send_stdin must opt
@@ -243,7 +257,7 @@ class _SandboxInstance:
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE if want_stdin else subprocess.DEVNULL,
                 cwd=cwd or self._cwd,
-                env=env,
+                env=self._command_env(envs),
             )
 
             stdout_chunks: list[bytes] = []

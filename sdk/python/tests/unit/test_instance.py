@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
+from unittest.mock import patch
 
 from ._instance_loader import load_instance_class
 
@@ -52,6 +54,29 @@ class SandboxInstanceTest(unittest.TestCase):
         process = next(item for item in processes if item["pid"] == started["pid"])
         self.assertEqual(process["cmd"], "sleep 30")
         self.assertTrue(process["running"])
+
+    def test_command_environment_filters_framework_python_path(self):
+        runtime_path = "/__yuanrong/opt/venv-py3.13/lib/python3.13/site-packages"
+        with patch.dict(
+            os.environ,
+            {"PYTHONPATH": f"{runtime_path}:/task/python"},
+        ):
+            result = self.instance.cmd_run('printf %s "$PYTHONPATH"')
+
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["stdout"], "/task/python")
+
+    def test_command_environment_honors_explicit_python_path(self):
+        runtime_path = "/__yuanrong/opt/venv-py3.13/lib/python3.13/site-packages"
+        with patch.dict(os.environ, {"PYTHONPATH": runtime_path}):
+            result = self.instance.cmd_run(
+                'printf %s "$PYTHONPATH"',
+                envs={"PYTHONPATH": "/explicit/python"},
+            )
+
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["stdout"], "/explicit/python")
+
 
 if __name__ == "__main__":
     unittest.main()
