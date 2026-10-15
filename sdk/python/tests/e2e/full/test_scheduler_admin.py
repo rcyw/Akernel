@@ -16,7 +16,6 @@
 
 import json
 import os
-import ssl
 import time
 import unittest
 import urllib.error
@@ -25,6 +24,7 @@ import urllib.request
 
 from akernel_sdk import Sandbox
 from akernel_sdk._addresses import api_endpoint_from_env
+from akernel_sdk._tls import create_ssl_context
 from tests.e2e.full._keys import create_key, management_enabled, revoke_key
 
 _ENABLED = (
@@ -41,11 +41,7 @@ def _request(method: str, path: str, token: str) -> dict:
         method=method,
         headers={"Authorization": "Bearer " + token.strip()},
     )
-    context = None
-    if endpoint.use_tls:
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+    context = create_ssl_context() if endpoint.use_tls else None
     with urllib.request.urlopen(request, timeout=20, context=context) as response:
         return json.load(response)
 

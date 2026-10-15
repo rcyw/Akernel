@@ -35,6 +35,8 @@ python -m tests.e2e.run --level standalone --case direct-ingress --case io \
   --output out/e2e/selected
 ```
 
+All HTTPS fixture requests, including temporary key management, tenant inventory, and scheduler administration, honor `AKERNEL_VERIFY_TLS` and the configured CA trust through the SDK TLS helper. Enable verification and set `SSL_CERT_FILE` for private test certificates.
+
 Each group runs in a separate process and writes its own log. `summary.json`
 records status, elapsed time, test count, skips and Redis audit. Groups continue
 after a prior group fails. A skip or `partial` result does not prove coverage.
