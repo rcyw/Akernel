@@ -12,6 +12,12 @@ ROOT = Path(__file__).resolve().parent
 
 
 class AdxTerraformContractTest(unittest.TestCase):
+    def test_aliyun_redis_policy_follows_exclusive_eni_support(self) -> None:
+        main = (ROOT / "aliyun" / "main.tf").read_text()
+        values = (ROOT / "aliyun" / "values-akernel.yaml.tmpl").read_text()
+        self.assertIn("redis_network_policy_enabled = !var.node_pool_exclusive_eni", main)
+        self.assertIn("networkPolicy:\n      enabled: ${redis_network_policy_enabled}", values)
+
     def test_each_provider_exposes_adx_control_and_data_directly(self) -> None:
         for provider in ("aliyun", "huaweicloud"):
             with self.subTest(provider=provider):

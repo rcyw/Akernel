@@ -141,6 +141,7 @@ locals {
     adx_data_port               = var.adx_data_port
     adx_service_annotations     = local.effective_adx_service_annotations
     adx_load_balancer_ip        = var.adx_load_balancer_ip
+    redis_network_policy_enabled = !var.node_pool_exclusive_eni
     acr_registry                = local.acr_registry
     acr_secret_enabled          = local.acr_secret_enabled
     acr_host                    = local.acr_host
