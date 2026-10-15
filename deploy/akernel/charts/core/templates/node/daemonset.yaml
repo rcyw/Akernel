@@ -82,6 +82,14 @@ spec:
         imagePullPolicy: {{ include "core.image.pullPolicy" (dict "root" . "image" .Values.node.image) }}
         command:
         - /usr/local/bin/akernel-entrypoint
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 19091
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         lifecycle:
           postStart:
             exec:
