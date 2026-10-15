@@ -85,5 +85,33 @@ all-in-one image, while each component can still override repository/tag/policy.
 {{- end }}
 
 {{- define "core.image" -}}
+{{- $image := .image | default dict -}}
+{{- $digest := $image.digest | default "" -}}
+{{- if and (not $digest) (not $image.repository) (not $image.tag) -}}
+{{- $digest = .root.Values.image.digest | default "" -}}
+{{- end -}}
+{{- if $digest -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" $digest) -}}
+{{- fail "image digest must be sha256 followed by 64 lowercase hex characters" -}}
+{{- end -}}
+{{- printf "%s@%s" (include "core.image.repository" .) $digest -}}
+{{- else -}}
 {{- printf "%s:%s" (include "core.image.repository" .) (include "core.image.tag" .) -}}
+{{- end -}}
+{{- end }}
+
+{{/* Optional placement for the independent ADX control roles. */}}
+{{- define "core.placement" -}}
+{{- with .nodeSelector }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .affinity }}
+affinity:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .tolerations }}
+tolerations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end }}

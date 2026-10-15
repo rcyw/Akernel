@@ -351,6 +351,13 @@ make plan ENV="${ENV_NAME}"
 Inspect an existing profile before reusing its name. Add `FORCE=1` only when
 the user has explicitly approved overwriting its generated configuration.
 
+Dedicated Kubernetes control pools use the `adx.redis`, `adx.coordinator`, and
+`adx.ingressApi` placement values. The node DaemonSet tolerates taints, so
+explicitly restrict its affinity to sandbox workers. Rollouts default to one
+unavailable node. `image.digest` and component `digest` values allow immutable
+all-in-one deployments; explicit component repository/tag settings do not
+inherit a global digest. See the deployment guide for these contracts.
+
 ## Agent DX API Key
 
 Read the deployed bootstrap administrator API key with:

@@ -511,3 +511,24 @@ Resizing an existing cache is unsupported. Same-Pod service restarts retain it; 
 Internal network mode requires an ADX package containing the optional internal
 transport implementation. The current #71 artifact pin predates it; validate
 with the updated package before deploying these templates.
+
+
+## Dedicated cluster pools and immutable images
+
+Set `core.adx.redis.nodeSelector`, `core.adx.coordinator.nodeSelector`, and
+`core.adx.ingressApi.nodeSelector` with their matching `tolerations` and
+optional `affinity` when control services run on a dedicated, tainted pool.
+The chart leaves these empty for clusters without dedicated pools.
+Restrict `core.node.affinity` to the intended worker labels: the node
+DaemonSet tolerates taints, so taints alone do not keep it out of other pools.
+The Aliyun Terraform values exclude the dedicated control and Dragonfly pools.
+
+`core.node.maxUnavailable` defaults to one for both native and Kruise
+DaemonSets. Drain the affected sandbox worker before replacement.
+
+Use `core.image.digest=sha256:<64 lowercase hex characters>` to deploy the
+all-in-one image by immutable digest. A component may set its own `digest`;
+an explicit component repository or tag uses that selection rather than
+inheriting the global digest. Digest references take precedence over tags
+within the same image configuration. Keep build/push tags unique and record
+the resolved remote digest before installation.
