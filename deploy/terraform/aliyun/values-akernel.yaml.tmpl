@@ -27,6 +27,8 @@ adx:
   redis:
     mode: managed
     appendfsync: everysec
+    networkPolicy:
+      enabled: ${redis_network_policy_enabled}
     persistence:
       enabled: true
       storageClassName: "${etcd_storage_class}"

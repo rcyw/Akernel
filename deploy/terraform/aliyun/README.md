@@ -10,6 +10,13 @@ It installs:
 - Optional Dragonfly to `dragonfly_namespace` (controlled by `install_dragonfly`)
 - Optional prereq `openkruise` to `prereq_namespace` (controlled by `install_prereqs`)
 
+With `node_pool_exclusive_eni=true`, the module disables the managed Redis
+NetworkPolicy because Terway exclusive ENI Pods do not support it. Redis keeps
+password authentication and a private ClusterIP Service; the VPC/security-group
+boundary controls network access. Shared ENI deployments keep the policy
+enabled. When reusing a cluster, match this option to its actual worker network
+mode and verify worker-to-Redis connectivity.
+
 ## Pod PID budget
 
 `node_pool_pids_limit` defaults to `1620780` for the default pool and all
