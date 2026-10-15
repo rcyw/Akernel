@@ -239,6 +239,10 @@ isolation and requires CNI enforcement. Keep it enabled by default; an explicit
 deployments with a verified private network/security-group boundary. Redis
 authentication and ClusterIP exposure remain mandatory. Node readiness uses
 adxlet's metrics listener; systemd process startup alone is insufficient.
+Cold worker reboots must also verify actual AKernel re-admission. The pinned
+sandboxd can refuse startup when a durable active TAP lease survives the
+kernel device. Follow the guarded cold-worker recovery procedure in
+`deploy/README.md`; do not report Node Ready as automatic runtime recovery.
 Coordinator and Ingress/API Server run in separate
 Deployments with independent `adxctl` supervisors and health probes. Their
 generated state is container-local, while Redis persists authoritative state.

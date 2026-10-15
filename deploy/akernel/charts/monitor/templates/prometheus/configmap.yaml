@@ -69,10 +69,10 @@ data:
           regex: Running
         - source_labels: [__meta_kubernetes_pod_container_name]
           action: keep
-          regex: {{ $controlPlanePods.targetContainerRegex | default "akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis" | quote }}
+          regex: {{ $controlPlanePods.targetContainerRegex | default "coordinator|ingress-api|akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis" | quote }}
         - source_labels: [__meta_kubernetes_pod_container_port_name, __meta_kubernetes_pod_container_port_number]
           action: keep
-          regex: {{ printf "(%s);.*|;(%s)" ($controlPlanePods.targetPortNameRegex | default "http|client|dashboard|mysql|redis") ($controlPlanePods.targetPortNumberRegex | default "8000|4002|3306|6379") | quote }}
+          regex: {{ printf "(%s);.*|;(%s)" ($controlPlanePods.targetPortNameRegex | default "coordinator|health|http|client|dashboard|mysql|redis") ($controlPlanePods.targetPortNumberRegex | default "8000|4002|3306|6379") | quote }}
         - source_labels: [__meta_kubernetes_pod_host_ip]
           action: replace
           target_label: __address__
@@ -94,6 +94,11 @@ data:
           regex: (mysql|redis)
           action: replace
           target_label: app
+          replacement: $1
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: (akernel-adx-coordinator|akernel-adx-ingress-api|akernel-adx-redis)
+          action: replace
+          target_label: component
           replacement: $1
         - source_labels: [__meta_kubernetes_pod_label_app]
           regex: akernel-master
@@ -171,10 +176,10 @@ data:
           regex: Running
         - source_labels: [__meta_kubernetes_pod_container_name]
           action: keep
-          regex: {{ $controlPlanePods.targetContainerRegex | default "akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis" | quote }}
+          regex: {{ $controlPlanePods.targetContainerRegex | default "coordinator|ingress-api|akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis" | quote }}
         - source_labels: [__meta_kubernetes_pod_container_port_name, __meta_kubernetes_pod_container_port_number]
           action: keep
-          regex: {{ printf "(%s);.*|;(%s)" ($controlPlanePods.targetPortNameRegex | default "http|client|dashboard|mysql|redis") ($controlPlanePods.targetPortNumberRegex | default "8000|4002|3306|6379") | quote }}
+          regex: {{ printf "(%s);.*|;(%s)" ($controlPlanePods.targetPortNameRegex | default "coordinator|health|http|client|dashboard|mysql|redis") ($controlPlanePods.targetPortNumberRegex | default "8000|4002|3306|6379") | quote }}
         - source_labels: [__meta_kubernetes_pod_host_ip]
           action: replace
           target_label: __address__
@@ -196,6 +201,11 @@ data:
           regex: (mysql|redis)
           action: replace
           target_label: app
+          replacement: $1
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: (akernel-adx-coordinator|akernel-adx-ingress-api|akernel-adx-redis)
+          action: replace
+          target_label: component
           replacement: $1
         - source_labels: [__meta_kubernetes_pod_label_app]
           regex: akernel-master
