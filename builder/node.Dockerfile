@@ -500,7 +500,7 @@ ARG AKERNEL_VERSION
 ARG AKERNEL_REVISION
 LABEL org.opencontainers.image.version="${AKERNEL_VERSION}" \
       org.opencontainers.image.revision="${AKERNEL_REVISION}" \
-      org.akernel.runtime.profile="rrt" \
+      org.akernel.runtime.profile="execd" \
       org.akernel.gvisor.release="${GVISOR_RELEASE}" \
       org.akernel.gvisor.archive.sha512="${GVISOR_SHA512}" \
       org.akernel.distill-fs.archive.sha256="${DISTILL_FS_SHA256}" \
