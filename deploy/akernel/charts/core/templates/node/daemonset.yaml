@@ -21,11 +21,11 @@ spec:
     {{- if .Values.kruise.enabled }}
     rollingUpdate:
       rollingUpdateType: Standard
-      maxUnavailable: 200
+      maxUnavailable: {{ .Values.node.maxUnavailable }}
       partition: 0
     {{- else }}
     rollingUpdate:
-      maxUnavailable: 200
+      maxUnavailable: {{ .Values.node.maxUnavailable }}
     {{- end }}
     type: RollingUpdate
   selector:

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -30,6 +31,18 @@ def render() -> tuple[list[dict], str]:
         text=True,
     )
     return [item for item in yaml.safe_load_all(result.stdout) if item], result.stdout
+
+
+def render_values(values: dict) -> list[dict]:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as config:
+        yaml.safe_dump(values, config)
+        config.flush()
+        result = subprocess.run(
+            ["helm", "template", "akernel", str(CHART), "--namespace",
+             "akernel-system", "--values", config.name],
+            check=True, capture_output=True, text=True,
+        )
+    return [item for item in yaml.safe_load_all(result.stdout) if item]
 
 
 class AdxChartTest(unittest.TestCase):
@@ -581,6 +594,67 @@ class AdxChartTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("adx.coordinator.replicas must be 1", result.stderr)
+
+
+    def test_control_roles_honor_dedicated_pool_placement(self) -> None:
+        placement = {
+            "nodeSelector": {"node-role": "akernel-control-plane"},
+            "tolerations": [{"key": "dedicated", "operator": "Equal",
+                             "value": "akernel-control-plane", "effect": "NoSchedule"}],
+            "affinity": {"podAntiAffinity": {
+                "preferredDuringSchedulingIgnoredDuringExecution": [{
+                    "weight": 100, "podAffinityTerm": {
+                        "labelSelector": {"matchLabels": {"app": "control"}},
+                        "topologyKey": "kubernetes.io/hostname"}}]}},
+        }
+        resources = render_values({"adx": {role: placement for role in
+                                          ("redis", "coordinator", "ingressApi")}})
+        workloads = [x for x in resources if x["kind"] in ("Deployment", "StatefulSet")]
+        self.assertEqual(len(workloads), 3)
+        for workload in workloads:
+            with self.subTest(workload=workload["metadata"]["name"]):
+                pod = workload["spec"]["template"]["spec"]
+                for key, expected in placement.items():
+                    self.assertEqual(pod[key], expected)
+
+    def test_node_rollout_limits_unavailable_workers(self) -> None:
+        node = self.resource("DaemonSet", "akernel-node")
+        self.assertEqual(node["spec"]["updateStrategy"]["rollingUpdate"]["maxUnavailable"], 1)
+        resources = render_values({"node": {"maxUnavailable": "25%"}})
+        node = next(x for x in resources if x["kind"] == "DaemonSet")
+        self.assertEqual(node["spec"]["updateStrategy"]["rollingUpdate"]["maxUnavailable"], "25%")
+
+    def test_digest_is_used_for_inherited_images(self) -> None:
+        digest = "sha256:" + "a" * 64
+        resources = render_values({"image": {"repository": "registry.example.test/all-in-one",
+                                             "digest": digest}})
+        for workload in resources:
+            if workload["kind"] not in ("Deployment", "StatefulSet", "DaemonSet"):
+                continue
+            pod = workload["spec"]["template"]["spec"]
+            for container in pod.get("containers", []) + pod.get("initContainers", []):
+                with self.subTest(container=container["name"]):
+                    self.assertEqual(container["image"], "registry.example.test/all-in-one@" + digest)
+
+    def test_component_override_does_not_inherit_another_image_digest(self) -> None:
+        resources = render_values({
+            "image": {"digest": "sha256:" + "a" * 64},
+            "node": {"image": {"repository": "registry.example.test/node", "tag": "candidate"}},
+        })
+        node = next(x for x in resources if x["kind"] == "DaemonSet")
+        self.assertEqual(node["spec"]["template"]["spec"]["containers"][0]["image"],
+                         "registry.example.test/node:candidate")
+        resources = render_values({"node": {"image": {"digest": "sha256:" + "b" * 64}}})
+        node = next(x for x in resources if x["kind"] == "DaemonSet")
+        self.assertTrue(node["spec"]["template"]["spec"]["containers"][0]["image"].endswith("@sha256:" + "b" * 64))
+
+    def test_malformed_digest_fails_before_installation(self) -> None:
+        result = subprocess.run(
+            ["helm", "template", "akernel", str(CHART), "--set", "image.digest=sha256:bad"],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("image digest must be sha256", result.stderr)
 
 
 if __name__ == "__main__":
