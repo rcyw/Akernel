@@ -192,7 +192,7 @@ prometheusServer:
     accessMode: ReadWriteOnce
 
   config:
-    clusterName: 'yuanrong-frontend'
+    clusterName: 'akernel'
     environment: 'kubernetes'
     retentionTime: '30d'
     controlPlanePods:
@@ -200,8 +200,8 @@ prometheusServer:
       namespaces:
         - "akernel"
       labelSelector: ""
-      targetContainerRegex: "akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis"
-      targetPortNameRegex: "http|client|dashboard|mysql|redis"
+      targetContainerRegex: "coordinator|ingress-api|akernel-master|akernel-frontend|etcd|manager|scheduler|seed-client|mysql|redis"
+      targetPortNameRegex: "coordinator|health|http|client|dashboard|mysql|redis"
       targetPortNumberRegex: "8000|4002|3306|6379"
       kubelet:
         scheme: https
