@@ -219,6 +219,34 @@ class AdxChartTest(unittest.TestCase):
             [{"mountPath": "/home/akernel", "name": "home-disk"}],
         )
 
+    def test_node_readiness_waits_for_the_adxlet_metrics_listener(self) -> None:
+        pod = self.resource("DaemonSet", "akernel-node")["spec"]["template"]["spec"]
+        node = next(c for c in pod["containers"] if c["name"] == "akernel-node")
+        self.assertEqual(
+            node["readinessProbe"]["httpGet"], {"path": "/metrics", "port": 19091}
+        )
+        self.assertNotIn("livenessProbe", node)
+
+    def test_redis_policy_opt_out_preserves_private_service_auth_and_storage(self) -> None:
+        self.resource("NetworkPolicy", "akernel-adx-redis")
+        resources = render_values({"adx": {"redis": {"networkPolicy": {"enabled": False}}}})
+        self.assertFalse(any(item["kind"] == "NetworkPolicy" for item in resources))
+        redis = next(item for item in resources if item["kind"] == "StatefulSet")
+        self.assertEqual(redis["metadata"]["name"], "akernel-adx-redis")
+        self.assertTrue(redis["spec"]["volumeClaimTemplates"])
+        container = redis["spec"]["template"]["spec"]["containers"][0]
+        self.assertIn("--requirepass", " ".join(container["command"]))
+        self.assertTrue(any(
+            item["kind"] == "Secret"
+            and item["metadata"]["name"] == "akernel-adx-redis-auth"
+            for item in resources
+        ))
+        service = next(
+            item for item in resources if item["kind"] == "Service"
+            and item["metadata"]["name"] == "akernel-adx-redis"
+        )
+        self.assertEqual(service["spec"].get("type", "ClusterIP"), "ClusterIP")
+
     def test_node_collector_reads_only_the_node_supervisor_logs(self) -> None:
         result = subprocess.run(
             [

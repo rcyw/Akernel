@@ -298,6 +298,17 @@ have independent readiness/liveness checks and independent `adxctl` supervisors.
 The supervisors retry failed child processes without a restart budget, with
 `restart_delay_ms: 1000` between attempts. The deployment YAML does not use the
 removed `restart_limit` setting.
+
+`core.adx.redis.networkPolicy.enabled` defaults to `true`. Some mixed CNI
+configurations cannot identify worker Pods in the Redis policy: Alibaba
+[Terway exclusive ENI mode](https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/user-guide/work-with-terway)
+does not support NetworkPolicy, and mixing it with shared ENI control Pods can
+block Redis access. Such deployments can explicitly set this value to `false`
+and rely on their private network/security-group boundary and Redis
+authentication. This opt-out does not expose Redis publicly or disable its
+password; it removes Pod-level network isolation, so verify the infrastructure
+boundary and actual worker connectivity separately.
+
 Their generated configuration and logs are container-local under
 `/home/akernel/adx/run/<role>` and reset on Pod replacement; the authoritative cluster
 state remains in Redis. Node state and logs use the persistent
@@ -524,7 +535,10 @@ DaemonSet tolerates taints, so taints alone do not keep it out of other pools.
 The Aliyun Terraform values exclude the dedicated control and Dragonfly pools.
 
 `core.node.maxUnavailable` defaults to one for both native and Kruise
-DaemonSets. Drain the affected sandbox worker before replacement.
+DaemonSets. Readiness waits for adxlet's metrics listener on port 19091, so a
+running systemd container alone does not finish a rollout. Drain the affected
+sandbox worker before replacement; no Kubernetes liveness probe kills live
+sandboxes during a temporary control-plane outage.
 
 Use `core.image.digest=sha256:<64 lowercase hex characters>` to deploy the
 all-in-one image by immutable digest. A component may set its own `digest`;

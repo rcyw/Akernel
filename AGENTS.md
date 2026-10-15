@@ -234,7 +234,12 @@ even though the Pod declares a node configuration.
 
 The managed Kubernetes Redis uses its own Helm-generated authentication Secret,
 preserved by live lookup during upgrades. Its NetworkPolicy is additional
-isolation and requires CNI enforcement. Coordinator and Ingress/API Server run in separate
+isolation and requires CNI enforcement. Keep it enabled by default; an explicit
+`adx.redis.networkPolicy.enabled=false` is available for incompatible CNI
+deployments with a verified private network/security-group boundary. Redis
+authentication and ClusterIP exposure remain mandatory. Node readiness uses
+adxlet's metrics listener; systemd process startup alone is insufficient.
+Coordinator and Ingress/API Server run in separate
 Deployments with independent `adxctl` supervisors and health probes. Their
 generated state is container-local, while Redis persists authoritative state.
 Adxlet uses its own state subtree under `/home/akernel/adx/run/node`;

@@ -38,6 +38,8 @@ adx:
     tolerations: []
     mode: managed
     appendfsync: everysec
+    networkPolicy:
+      enabled: true
     external:
       existingSecret: ""
       urlKey: redis-url
