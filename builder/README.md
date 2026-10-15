@@ -2,6 +2,8 @@
 
 The shared `deploy/scripts/build-image.sh` helper builds the runtime rootfs and all-in-one node image for `make build` and `make standalone`. Downloads use official repositories and pinned upstream releases by default.
 
+Both images identify the embedded Execd runtime with the `org.akernel.runtime.profile=execd` label.
+
 ## Package repositories
 
 Select mirrors for one invocation without changing host package-manager or Docker daemon configuration:
