@@ -29,6 +29,7 @@ import httpx
 
 from akernel_sdk import Sandbox
 from akernel_sdk._addresses import api_endpoint_from_env
+from akernel_sdk._tls import create_ssl_context
 
 _ENABLED = (
     os.environ.get("AKERNEL_RUN_INTEGRATION") == "1"
@@ -122,7 +123,9 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                     (self.headers.get("X-Request-Id", ""), request_name)
                 )
         try:
-            with httpx.Client(verify=False, trust_env=False, timeout=120) as client:
+            with httpx.Client(
+                verify=create_ssl_context(), trust_env=False, timeout=120
+            ) as client:
                 response = client.request(
                     self.command,
                     f"{proxy.upstream}{self.path}",

@@ -2,11 +2,11 @@
 
 import json
 import os
-import ssl
 import urllib.request
 import uuid
 
 from akernel_sdk._addresses import api_endpoint_from_env
+from akernel_sdk._tls import create_ssl_context
 
 
 def management_enabled() -> bool:
@@ -25,11 +25,7 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
             "Content-Type": "application/json",
         },
     )
-    context = None
-    if endpoint.use_tls:
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+    context = create_ssl_context() if endpoint.use_tls else None
     with urllib.request.urlopen(request, timeout=20, context=context) as response:
         payload = response.read()
         return json.loads(payload) if payload else {}

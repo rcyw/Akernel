@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import io
+import os
 import unittest
 from unittest.mock import patch
 
@@ -28,6 +29,23 @@ class _Response(io.BytesIO):
 
 
 class TenantIsolationFixtureTest(unittest.TestCase):
+    def test_foreign_tenant_connection_inherits_tls_verification(self):
+        for setting, expected in (("true", True), ("false", False)):
+            with patch.dict(
+                os.environ,
+                {
+                    "AKERNEL_SERVER_ADDRESS": "https://adx.example",
+                    "AKERNEL_SECOND_TENANT_TOKEN": "fixture-tenant-token",
+                    "AKERNEL_VERIFY_TLS": setting,
+                },
+                clear=True,
+            ):
+                case = fixture.TenantIsolationIntegrationTest()
+                key_id, connection = case._other_connection()
+                self.assertIsNone(key_id)
+                self.assertTrue(connection.use_tls)
+                self.assertEqual(connection.verify_tls, expected)
+
     @patch("tests.e2e.full.test_tenant_isolation.api_endpoint_from_env")
     @patch("tests.e2e.full.test_tenant_isolation.urllib.request.urlopen")
     def test_instance_list_follows_paginated_response(self, urlopen, endpoint):

@@ -16,7 +16,6 @@
 
 import json
 import os
-import ssl
 import time
 import unittest
 import urllib.error
@@ -27,6 +26,7 @@ import adx_environment
 
 from akernel_sdk import Sandbox
 from akernel_sdk._addresses import api_endpoint_from_env
+from akernel_sdk._tls import create_ssl_context, verification_from_env
 from tests.e2e.full._keys import create_key, management_enabled, revoke_key
 
 _ENABLED = (
@@ -39,11 +39,7 @@ _RUNTIME = os.environ.get("AKERNEL_TEST_RUNTIME", "runsc")
 
 def _list_instances(token: str) -> list[dict]:
     endpoint = api_endpoint_from_env()
-    context = None
-    if endpoint.use_tls:
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+    context = create_ssl_context() if endpoint.use_tls else None
 
     items: list[dict] = []
     page_token = ""
@@ -93,6 +89,7 @@ class TenantIsolationIntegrationTest(unittest.TestCase):
             server_address=endpoint.authority(),
             token=other_token,
             use_tls=endpoint.use_tls,
+            verify_tls=verification_from_env(),
         )
 
     def test_cross_tenant_instance_lookup_is_denied(self):
@@ -154,11 +151,7 @@ class TenantIsolationIntegrationTest(unittest.TestCase):
                 "Content-Type": "application/json",
             },
         )
-        context = None
-        if endpoint.use_tls:
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+        context = create_ssl_context() if endpoint.use_tls else None
         try:
             with self.assertRaises(urllib.error.HTTPError) as denied:
                 urllib.request.urlopen(request, timeout=20, context=context)
