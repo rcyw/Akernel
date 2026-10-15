@@ -346,6 +346,10 @@ helm upgrade --install akernel ./akernel \
   -f my-values.yaml
 ```
 
+Cold worker reboots need a separate recovery check from process restarts. With the currently pinned sandboxd, a reboot that retains the Kubernetes Pod identity can leave an active durable TAP lease after the kernel device has disappeared; sandboxd deliberately refuses startup. A Kubernetes Node becoming Ready does not prove AKernel admission recovered. Before replacing that worker's Pod, confirm the affected environments are terminal with released reservations, inspect the runtime backend for live processes, and preserve its local metadata. Pod replacement uses sandboxd's existing Pod-identity reset and discards its registrations, bundles, and image-manager cache. Inspect and retire any stopped orphan runtime records separately. This is an operator recovery procedure, not evidence of automatic cold-reboot recovery or cross-node checkpoint migration.
+
+The monitoring chart includes Coordinator, Ingress/API Server, and Redis in its kubelet CPU, memory, and disk collection. The default Pod filters select each ADX control container once, using its Coordinator, health, or Redis port; legacy control-role filters remain available for existing deployments. When overriding `prometheusServer.config.controlPlanePods` filters, keep both the container names and a matching declared port, and confirm actual target coverage after deployment.
+
 ### Install with external Redis
 
 Store the complete Redis URL in a Kubernetes Secret. This keeps credentials out
