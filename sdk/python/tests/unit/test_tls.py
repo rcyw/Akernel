@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.error
 from concurrent.futures import Future
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +23,7 @@ from adx_environment.commands import CommandWaitTimeout
 
 from akernel_sdk import _resource_api, cli
 from akernel_sdk._backends import adx, registry
+from tests.e2e.full import _keys, test_scheduler_admin, test_tenant_isolation
 
 
 class TLSConfigTest(unittest.TestCase):
@@ -200,8 +202,8 @@ class TLSHandshakeTest(unittest.TestCase):
         return {"SSL_CERT_FILE": str(file), "SSL_CERT_DIR": str(directory)}
 
     @contextlib.contextmanager
-    def _https(self, name):
-        server = ThreadingHTTPServer(("127.0.0.1", 0), _HTTPHandler)
+    def _https(self, name, handler=_HTTPHandler):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         server.socket = self._server_context(name).wrap_socket(
             server.socket, server_side=True
         )
@@ -329,6 +331,40 @@ class TLSHandshakeTest(unittest.TestCase):
                 self.assertEqual(_resource_api.query_resource_view(), {"items": []})
             finally:
                 client.close()
+
+    def test_e2e_administration_and_tenant_queries_verify_real_tls(self):
+        class FixtureHandler(_HTTPHandler):
+            def do_GET(self):
+                self._respond({"items": [], "nextPageToken": ""})
+
+        actions = (
+            lambda: _keys._request("GET", "/api/admin/v1/keys"),
+            lambda: test_scheduler_admin._request(
+                "GET", "/global-scheduler/resources", "test"
+            ),
+            lambda: test_tenant_isolation._list_instances("test"),
+        )
+        for certificate, trusted in (
+            ("valid", True),
+            ("valid", False),
+            ("wrong-host", True),
+        ):
+            with (
+                self._https(certificate, FixtureHandler) as port,
+                self._env(port, trusted=trusted),
+            ):
+                for index, action in enumerate(actions):
+                    with self.subTest(
+                        certificate=certificate, trusted=trusted, action=index
+                    ):
+                        if certificate == "valid" and trusted:
+                            action()
+                        else:
+                            with self.assertRaises(urllib.error.URLError) as error:
+                                action()
+                            self.assertIsInstance(
+                                error.exception.reason, ssl.SSLCertVerificationError
+                            )
 
     def test_httpx_rejects_invalid_file_despite_usable_ca_directory(self):
         for kind, error in (
