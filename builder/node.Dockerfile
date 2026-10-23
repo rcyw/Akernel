@@ -25,6 +25,7 @@ ARG FIRECRACKER_BUILD_IMAGE=ubuntu:24.04
 ARG FIRECRACKER_RELEASE
 ARG FIRECRACKER_AMD64_SHA256
 ARG FIRECRACKER_AMD64_URL
+ARG FIRECRACKER_KERNEL_PROFILE=kvm
 ARG VIRTIOFSD_BUILD_IMAGE=rust:1.90.0-bookworm
 # virtiofsd v1.14.0, including the release Cargo.lock.
 ARG VIRTIOFSD_REVISION=c2540f8db14caba81c1e37fba23fc7bf2cd7f0dd
@@ -37,8 +38,8 @@ ARG OTELCOL_CONTRIB_SHA256=
 ARG AKERNEL_VERSION=unknown
 ARG AKERNEL_REVISION=unknown
 ARG ADX_VERSION=v0.1.0rc2
-ARG ADX_RELEASE_URL=https://agent-dx.obs.cn-southwest-2.myhuaweicloud.com/adx/release/0.1.0rc2/linux/amd64/adx-release.tar.gz
-ARG ADX_RELEASE_SHA256=5b4ec8896084f1589b33b7678f22824af43774bfd57991b7c89af69a9dffec5d
+ARG ADX_RELEASE_URL=https://agent-dx.obs.cn-southwest-2.myhuaweicloud.com/adx/daily/20261022184915-6fb53d733181/linux/amd64/adx-release.tar.gz
+ARG ADX_RELEASE_SHA256=664c4a7344ca7cf9b9fedefc7f010ae775c35b89148b068ab2dfa532b150b566
 
 FROM ${AKERNEL_NODE_BASE_IMAGE} AS adx-release
 ARG ADX_RELEASE_URL
@@ -47,8 +48,9 @@ ARG AKERNEL_APT_UBUNTU_MIRROR
 ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
-RUN set -eux; \
-    apt-get update; \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    set -eux; \
+    sh /tmp/apt-get-update.sh; \
     apt-get install -y --no-install-recommends ca-certificates curl python3; \
     rm -rf /var/lib/apt/lists/*; \
     mkdir -p /tmp/adx-release; \
@@ -71,7 +73,8 @@ ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN set -eux; \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    set -eux; \
     case "${TARGETARCH:-}" in \
       amd64|arm64) ;; \
       *) echo "unsupported gVisor target architecture: ${TARGETARCH}" >&2; \
@@ -81,7 +84,7 @@ RUN set -eux; \
     test -n "${GVISOR_URL}"; \
     test -n "${GVISOR_SHA512}"; \
     asset=/tmp/gvisor.tar.bz2; \
-    apt-get update; \
+    sh /tmp/apt-get-update.sh; \
     apt-get install -y --no-install-recommends bzip2 ca-certificates curl; \
     rm -rf /var/lib/apt/lists/*; \
     curl -fSL --http1.1 --retry 10 --retry-delay 2 --retry-all-errors \
@@ -105,9 +108,10 @@ ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN set -eux; \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    set -eux; \
     test "${TARGETARCH:-amd64}" = "amd64"; \
-    apt-get update; \
+    sh /tmp/apt-get-update.sh; \
     apt-get install -y --no-install-recommends ca-certificates curl zstd; \
     rm -rf /var/lib/apt/lists/*; \
     archive="/tmp/kata-static-${KATA_RELEASE}-amd64.tar.zst"; \
@@ -146,7 +150,8 @@ ARG AKERNEL_APT_DEBIAN_SECURITY_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN apt-get update && \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    sh /tmp/apt-get-update.sh && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         gcc \
@@ -172,7 +177,8 @@ ARG AKERNEL_APT_DEBIAN_SECURITY_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN apt-get update && \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    sh /tmp/apt-get-update.sh && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
       -o Dpkg::Options::="--force-confold" --no-install-recommends \
       ca-certificates git libcap-ng-dev libseccomp-dev pkg-config && \
@@ -185,16 +191,19 @@ RUN git init && \
     cargo build --release --locked
 
 FROM ${FIRECRACKER_BUILD_IMAGE} AS firecracker-runtime-true
+COPY src/sandboxd/third_party/firecracker-candidate/ /tmp/firecracker-candidate/
 ARG FIRECRACKER_RELEASE
 ARG FIRECRACKER_AMD64_SHA256
 ARG FIRECRACKER_AMD64_URL
+ARG FIRECRACKER_KERNEL_PROFILE
 ARG TARGETARCH
 ARG AKERNEL_APT_UBUNTU_MIRROR
 ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN apt-get update && \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    sh /tmp/apt-get-update.sh && \
     apt-get install -y --no-install-recommends ca-certificates cpio curl gzip jq && \
     rm -rf /var/lib/apt/lists/*
 RUN set -eux; \
@@ -203,9 +212,12 @@ RUN set -eux; \
     test -n "${FIRECRACKER_AMD64_SHA256}"; \
     test -n "${FIRECRACKER_AMD64_URL}"; \
     archive="/tmp/firecracker-${FIRECRACKER_RELEASE}-x86_64.tgz"; \
-    curl -fSL --retry 10 --retry-delay 2 --retry-all-errors \
-      "${FIRECRACKER_AMD64_URL}" \
-      -o "${archive}"; \
+    if [ "${FIRECRACKER_KERNEL_PROFILE}" = pvm ]; then \
+      cp /tmp/firecracker-candidate/firecracker.tgz "${archive}"; \
+    else \
+      curl -fSL --retry 10 --retry-delay 2 --retry-all-errors \
+        "${FIRECRACKER_AMD64_URL}" -o "${archive}"; \
+    fi; \
     echo "${FIRECRACKER_AMD64_SHA256}  ${archive}" | sha256sum -c -; \
     mkdir -p /tmp/firecracker-release \
       /firecracker/usr/local/bin \
@@ -214,12 +226,20 @@ RUN set -eux; \
     tar -xzf "${archive}" -C /tmp/firecracker-release; \
     bundle="/tmp/firecracker-release/release-${FIRECRACKER_RELEASE}-x86_64"; \
     jq -e --arg release "${FIRECRACKER_RELEASE}" \
+      --arg profile "${FIRECRACKER_KERNEL_PROFILE}" \
       '.component == "akernel-firecracker-runtime" and \
        .repository == "akernel-dev/firecracker" and \
        .release_tag == $release and \
-       .architecture == "x86_64"' \
+       .architecture == "x86_64" and \
+       (.kernel_profile // "kvm") == $profile and \
+       ($profile == "kvm" or $profile == "pvm")' \
       "${bundle}/manifest.json" >/dev/null; \
     (cd "${bundle}"; sha256sum -c SHA256SUMS); \
+    if [ "${FIRECRACKER_KERNEL_PROFILE}" = pvm ]; then \
+      for config in PVM_GUEST X86_PIE X86_INTEL_MEMORY_PROTECTION_KEYS; do \
+        grep -qx "CONFIG_${config}=y" "${bundle}/kernel.config"; \
+      done; \
+    fi; \
     install -m 0755 "${bundle}/firecracker" \
       /firecracker/usr/local/bin/firecracker; \
     install -m 0644 \
@@ -227,7 +247,8 @@ RUN set -eux; \
       "${bundle}/kernel.config" \
       "${bundle}/manifest.json" \
       /firecracker/opt/firecracker/; \
-    cp -a "${bundle}/licenses/." /firecracker/opt/firecracker/licenses/
+    cp -a "${bundle}/licenses/." /firecracker/opt/firecracker/licenses/; \
+    rm -rf /tmp/firecracker-candidate
 
 COPY --from=virtiofsd-builder /src/virtiofsd/target/release/virtiofsd /firecracker/usr/local/bin/virtiofsd
 COPY --from=virtiofsd-builder /src/virtiofsd/LICENSE-APACHE /firecracker/opt/firecracker/licenses/virtiofsd-LICENSE-APACHE
@@ -260,7 +281,8 @@ ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN set -eux; \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    set -eux; \
     case "${TARGETARCH}" in \
       amd64|arm64) ;; \
       *) echo "unsupported runc target architecture: ${TARGETARCH}" >&2; exit 1 ;; \
@@ -268,7 +290,7 @@ RUN set -eux; \
     test -n "${RUNC_VERSION}"; \
     test -n "${RUNC_SHA256}"; \
     test -n "${RUNC_RELEASE_BASE_URL}"; \
-    apt-get update; \
+    sh /tmp/apt-get-update.sh; \
     apt-get install -y --no-install-recommends ca-certificates curl; \
     rm -rf /var/lib/apt/lists/*; \
     asset="/tmp/runc.${TARGETARCH}"; \
@@ -296,7 +318,8 @@ ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN apt-get update && \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    sh /tmp/apt-get-update.sh && \
     apt-get install -y --no-install-recommends ca-certificates curl jq binutils && \
     rm -rf /var/lib/apt/lists/*
 COPY ./builder/scripts/install-distill-fs.sh /install-distill-fs.sh
@@ -326,7 +349,8 @@ ARG AKERNEL_APT_UBUNTU_PORTS_MIRROR
 RUN --mount=type=bind,source=builder/scripts/configure-apt-mirror.sh,target=/tmp/configure-apt-mirror.sh \
     sh /tmp/configure-apt-mirror.sh
 
-RUN apt-get update && \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    sh /tmp/apt-get-update.sh && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -353,7 +377,8 @@ RUN apt-get update && \
         xfsprogs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN set -eux; \
+RUN --mount=type=bind,source=builder/scripts/apt-get-update.sh,target=/tmp/apt-get-update.sh \
+    set -eux; \
     if [ "${TARGETARCH}" = "arm64" ]; then \
       echo "NVIDIA payload is excluded from the linux/arm64 image"; \
     else \
@@ -365,7 +390,7 @@ RUN set -eux; \
       | sed \
         's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
       > /etc/apt/sources.list.d/nvidia-container-toolkit.list; \
-    apt-get update; \
+    sh /tmp/apt-get-update.sh; \
     apt-get install -y --no-install-recommends \
       "libnvidia-container1=${LIBNVIDIA_CONTAINER_VERSION}" \
       "libnvidia-container-tools=${LIBNVIDIA_CONTAINER_VERSION}"; \
@@ -430,7 +455,14 @@ COPY ./builder/scripts/akernel-entrypoint.sh /usr/local/bin/akernel-entrypoint
 COPY ./builder/scripts/adx-service.sh /usr/local/bin/adx-service
 COPY ./builder/scripts/otel-collector-service.sh /usr/local/bin/otel-collector-service
 COPY ./builder/scripts/sandboxd_network_prepare.sh /usr/local/bin/sandboxd-network-prepare
+ARG FIRECRACKER_KERNEL_PROFILE
 COPY ./builder/config/adx-standalone.yaml /etc/akernel/adx-standalone.yaml
+COPY ./builder/config/adx-pvm.yaml /etc/akernel/adx-pvm.yaml
+RUN case "${FIRECRACKER_KERNEL_PROFILE}" in \
+      pvm) cp /etc/akernel/adx-pvm.yaml /etc/akernel/adx-standalone.yaml ;; \
+      kvm) ;; \
+      *) echo "invalid Firecracker kernel profile" >&2; exit 1 ;; \
+    esac
 RUN chmod 0755 \
         /usr/local/bin/runsc \
         /usr/local/bin/sandboxd \
